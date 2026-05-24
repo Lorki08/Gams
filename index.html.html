@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Mini Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080a12;
+  --surface: #0e111c;
+  --card: #131725;
+  --border: rgba(255,255,255,0.07);
+  --accent-y: #ffe600;
+  --accent-c: #00dcff;
+  --accent-g: #00e05a;
+  --accent-p: #c84dff;
+  --accent-r: #ff3b3b;
+  --text: #e8ecf4;
+  --muted: #5a6280;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Exo 2', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  overflow-x: hidden;
+}
+
+/* SCANLINE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  height: 60px;
+  background: rgba(8,10,18,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--accent-y);
+  letter-spacing: 2px;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+
+.nav-links a {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.nav-links a:hover { color: var(--text); }
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  padding: 80px 24px 60px;
+  overflow: hidden;
+}
+
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,220,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,220,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+}
+
+.hero-glow {
+  position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(0,220,255,0.06) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: var(--accent-c);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.2s ease forwards;
+}
+
+.hero h1 {
+  font-size: clamp(52px, 10vw, 110px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -2px;
+  background: linear-gradient(135deg, #fff 30%, var(--accent-c) 70%, var(--accent-y) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.4s ease forwards;
+}
+
+.hero-sub {
+  font-size: clamp(14px, 2vw, 18px);
+  font-weight: 400;
+  color: var(--muted);
+  max-width: 480px;
+  line-height: 1.6;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.6s ease forwards;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 50px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.8s ease forwards;
+}
+
+.tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+
+.tag-c { border-color: var(--accent-c); color: var(--accent-c); background: rgba(0,220,255,0.06); }
+.tag-y { border-color: var(--accent-y); color: var(--accent-y); background: rgba(255,230,0,0.06); }
+.tag-g { border-color: var(--accent-g); color: var(--accent-g); background: rgba(0,224,90,0.06); }
+.tag-p { border-color: var(--accent-p); color: var(--accent-p); background: rgba(200,77,255,0.06); }
+
+/* ── DISPLAY MOCKUP ── */
+.display-wrap {
+  opacity: 0;
+  animation: fadeUp 0.8s 1s ease forwards;
+  margin-bottom: 60px;
+}
+
+.display-device {
+  display: inline-block;
+  background: #0a0c14;
+  border: 2px solid #2a3050;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 0 60px rgba(0,220,255,0.12), 0 0 120px rgba(0,220,255,0.05);
+  position: relative;
+}
+
+.display-device::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 50%; transform: translateX(-50%);
+  width: 60px; height: 3px;
+  background: #1a2040;
+  border-radius: 0 0 4px 4px;
+}
+
+.display-screen {
+  width: 180px;
+  height: 240px;
+  background: var(--bg);
+  border: 1px solid #1a2040;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-header {
+  background: #0e111c;
+  padding: 6px 8px;
+  border-bottom: 1px solid #1a2040;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.screen-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--accent-y);
+  letter-spacing: 1px;
+}
+
+.screen-ip {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+}
+
+.menu-list {
+  flex: 1;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menu-item {
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+
+.menu-item.active {
+  border-color: rgba(0,220,255,0.5);
+  background: rgba(0,220,255,0.08);
+  color: var(--accent-c);
+}
+
+.menu-item:not(.active) { color: #3a4060; }
+
+.mi-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.screen-footer {
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 7px;
+  color: #2a3050;
+  border-top: 1px solid #1a2040;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── SCROLL CTA ── */
+.scroll-hint {
+  opacity: 0;
+  animation: fadeUp 0.6s 1.4s ease forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.scroll-hint span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.scroll-arrow {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(to bottom, var(--muted), transparent);
+  animation: scrollPulse 2s infinite;
+}
+
+/* ── SECTIONS ── */
+section {
+  padding: 100px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--accent-c);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-label::before {
+  content: '';
+  display: block;
+  width: 24px; height: 1px;
+  background: var(--accent-c);
+}
+
+section h2 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1.0;
+  margin-bottom: 50px;
+}
+
+/* ── GAMES GRID ── */
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 2px;
+}
+
+.game-card {
+  background: var(--card);
+  padding: 36px 28px;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: transform 0.3s, border-color 0.3s;
+}
+
+.game-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.gc-breakout::before { background: linear-gradient(90deg, var(--accent-c), transparent); }
+.gc-invaders::before { background: linear-gradient(90deg, var(--accent-g), transparent); }
+.gc-snake::before    { background: linear-gradient(90deg, #00c8ff, transparent); }
+.gc-tetris::before   { background: linear-gradient(90deg, var(--accent-p), transparent); }
+
+.game-icon {
+  font-size: 36px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.game-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.gc-breakout .game-title { color: var(--accent-c); }
+.gc-invaders .game-title { color: var(--accent-g); }
+.gc-snake    .game-title { color: #00c8ff; }
+.gc-tetris   .game-title { color: var(--accent-p); }
+
+.game-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.game-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.game-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* ── FEATURES ── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.feature-item {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  position: relative;
+}
+
+.feature-item::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 28px; right: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-c), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.feature-item:hover::after { opacity: 0.5; }
+
+.feature-icon {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.fi-wifi  { background: rgba(0,220,255,0.1); }
+.fi-music { background: rgba(255,230,0,0.1); }
+.fi-pin   { background: rgba(0,224,90,0.1); }
+.fi-ctrl  { background: rgba(200,77,255,0.1); }
+.fi-disp  { background: rgba(255,60,60,0.1); }
+.fi-sfx   { background: rgba(255,150,0,0.1); }
+
+.feature-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.feature-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+/* ── HARDWARE ── */
+.hw-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+@media (max-width: 640px) {
+  .hw-grid { grid-template-columns: 1fr; }
+}
+
+.hw-block {
+  background: var(--card);
+  padding: 28px 32px;
+  border: 1px solid var(--border);
+}
+
+.hw-block h3 {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.pin-num {
+  min-width: 36px;
+  text-align: right;
+  color: var(--accent-y);
+}
+
+.pin-sep { color: var(--muted); }
+
+.pin-name { color: var(--text); }
+
+.pin-type {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted);
+  background: rgba(255,255,255,0.04);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+.spec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.spec-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.spec-key { color: var(--muted); }
+
+.spec-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent-c);
+}
+
+/* ── MUSIC ── */
+.music-section { background: var(--surface); }
+
+.music-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.music-table th {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 12px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.music-table td {
+  padding: 14px 20px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.music-table tr:last-child td { border-bottom: none; }
+
+.music-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.music-name {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.music-style { color: var(--muted); font-size: 13px; }
+
+.music-bpm {
+  font-family: var(--mono);
+  color: var(--accent-y);
+  font-size: 13px;
+}
+
+.music-len {
+  font-family: var(--mono);
+  color: var(--accent-g);
+  font-size: 13px;
+}
+
+.music-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.mb-c { background: rgba(0,220,255,0.1); color: var(--accent-c); }
+.mb-y { background: rgba(255,230,0,0.1); color: var(--accent-y); }
+.mb-g { background: rgba(0,224,90,0.1);  color: var(--accent-g); }
+.mb-p { background: rgba(200,77,255,0.1); color: var(--accent-p); }
+.mb-r { background: rgba(255,59,59,0.1); color: var(--accent-r); }
+
+/* ── CODE ── */
+.code-section {
+  background: var(--surface);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.code-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.code-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.cd-r { background: #ff5f57; }
+.cd-y { background: #febc2e; }
+.cd-g { background: #28c840; }
+
+.code-filename {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.code-body {
+  padding: 24px;
+  overflow-x: auto;
+}
+
+.code-body pre {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre;
+  tab-size: 2;
+}
+
+.kw { color: var(--accent-p); }
+.fn { color: var(--accent-c); }
+.str { color: var(--accent-y); }
+.cm { color: var(--muted); opacity: 0.7; }
+.num { color: var(--accent-g); }
+.ty { color: #ff9e64; }
+
+/* ── CONTROLLER ── */
+.ctrl-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .ctrl-wrap { grid-template-columns: 1fr; }
+}
+
+.ctrl-device {
+  background: #0e0f1a;
+  border: 2px solid #1e2240;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 320px;
+  margin: 0 auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.ctrl-screen {
+  background: #060810;
+  border: 1px solid #1a2040;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.ctrl-screen-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-y);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.ctrl-screen-ip {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent-g);
+}
+
+.ctrl-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.ctrl-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.cbtn {
+  background: #1a1c2e;
+  border: 1px solid #2a2e4a;
+  border-radius: 8px;
+  color: #888aaa;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.cbtn:hover {
+  background: #222540;
+  border-color: var(--accent-c);
+  color: var(--accent-c);
+  box-shadow: 0 0 12px rgba(0,220,255,0.2);
+}
+
+.cbtn:active {
+  transform: scale(0.95);
+  background: #1a2a3a;
+}
+
+.cbtn-sq { width: 52px; height: 52px; }
+.cbtn-wide { width: 120px; height: 44px; }
+
+.ctrl-info h3 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.ctrl-info p {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.ctrl-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ctrl-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ctrl-step-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-c);
+  width: 28px; height: 28px;
+  border: 1px solid rgba(0,220,255,0.3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ctrl-step-text {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.ctrl-step-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── FOOTER ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px;
+  text-align: center;
+}
+
+.footer-logo {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--accent-y);
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+
+.footer-sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scrollPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor {
+  display: inline-block;
+  width: 2px; height: 1em;
+  background: var(--accent-c);
+  vertical-align: middle;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+/* ── SCROLL REVEAL ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  .nav-links { display: none; }
+  section { padding: 70px 20px; }
+  .hw-grid { grid-template-columns: 1fr; }
+}
+
+/* Tetris animation for hero */
+@keyframes menuCycle {
+  0%   { opacity: 1; }
+  24%  { opacity: 1; }
+  25%  { opacity: 0; }
+  49%  { opacity: 0; }
+  50%  { opacity: 1; }
+  74%  { opacity: 1; }
+  75%  { opacity: 0; }
+  99%  { opacity: 0; }
+  100% { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">ESP32&nbsp;GAMES</a>
+  <ul class="nav-links">
+    <li><a href="#games">Ігри</a></li>
+    <li><a href="#features">Функції</a></li>
+    <li><a href="#hardware">Залізо</a></li>
+    <li><a href="#controller">Контролер</a></li>
+    <li><a href="#music">Музика</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+
+  <p class="hero-eyebrow">ESP32 · ST7789 240×320 · WiFi</p>
+
+  <h1>MINI<br>GAMES</h1>
+
+  <p class="hero-sub">
+    Чотири класичних аркадних гри на мікроконтролері ESP32 з повноколірним TFT-дисплеєм, фоновою музикою та WiFi-контролером у браузері.
+  </p>
+
+  <div class="hero-tags">
+    <span class="tag tag-c">Breakout</span>
+    <span class="tag tag-g">Space Invaders</span>
+    <span class="tag tag-c">Snake</span>
+    <span class="tag tag-p">Tetris</span>
+    <span class="tag tag-y">Non-blocking Music</span>
+    <span class="tag tag-g">WebServer UI</span>
+  </div>
+
+  <div class="display-wrap">
+    <div class="display-device">
+      <div class="display-screen">
+        <div class="screen-header">
+          <span class="screen-title">ESP32 GAMES</span>
+          <span class="screen-ip">192.168.1.x</span>
+        </div>
+        <div class="menu-list">
+          <div class="menu-item active">
+            <div class="mi-dot" style="background:var(--accent-c)"></div>
+            BREAKOUT
+          </div>
+          <div class="menu-item">
+            <div class="mi-dot" style="background:#3a4060"></div>
+            SPACE INVADERS
+          </div>
+          <div class="menu-item">
+            <div class="mi-dot" style="background:#3a4060"></div>
+            SNAKE
+          </div>
+          <div class="menu-item">
+            <div class="mi-dot" style="background:#3a4060"></div>
+            TETRIS
+          </div>
+        </div>
+        <div class="screen-footer">
+          <span>UP/DN=select</span>
+          <span>ROT=start</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Докладніше</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</div>
+
+<!-- GAMES -->
+<section id="games">
+  <p class="section-label reveal">Ігри</p>
+  <h2 class="reveal">4 Аркадних<br>класики</h2>
+
+  <div class="games-grid reveal">
+    <div class="game-card gc-breakout">
+      <span class="game-icon">🧱</span>
+      <div class="game-title">BREAKOUT</div>
+      <p class="game-desc">Розбийте всі 80 цеглин кулею, керуючи платформою. 3 життя, підрахунок очок, запис рекордів між іграми.</p>
+      <div class="game-meta">
+        <span class="game-badge">8×10 сітка</span>
+        <span class="game-badge">3 життя</span>
+        <span class="game-badge">Wall kick</span>
+      </div>
+    </div>
+
+    <div class="game-card gc-invaders">
+      <span class="game-icon">👾</span>
+      <div class="game-title">SPACE INVADERS</div>
+      <p class="game-desc">3 ряди по 8 прибульців рухаються та прискорюються. Три типи ворогів з різними анімаціями та зворотним вогнем.</p>
+      <div class="game-meta">
+        <span class="game-badge">3×8 армія</span>
+        <span class="game-badge">AI-вогонь</span>
+        <span class="game-badge">Швидкість ↑</span>
+      </div>
+    </div>
+
+    <div class="game-card gc-snake">
+      <span class="game-icon">🐍</span>
+      <div class="game-title">SNAKE</div>
+      <p class="game-desc">Класична змійка на сітці 24×30. Швидкість зростає разом із рахунком. Повна підтримка всіх 4 напрямків руху.</p>
+      <div class="game-meta">
+        <span class="game-badge">24×30 поле</span>
+        <span class="game-badge">Динамічна швидкість</span>
+      </div>
+    </div>
+
+    <div class="game-card gc-tetris">
+      <span class="game-icon">🟦</span>
+      <div class="game-title">TETRIS</div>
+      <p class="game-desc">Всі 7 тетраміно з wall-kick ротацією, hard drop, 10 рівнів швидкості. Класична мелодія Korobeiniki в реальному часі.</p>
+      <div class="game-meta">
+        <span class="game-badge">7 фігур</span>
+        <span class="game-badge">Wall kick</span>
+        <span class="game-badge">Hard drop</span>
+        <span class="game-badge">10 рівнів</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" style="background: var(--surface); max-width: none; padding: 100px 40px;">
+<div style="max-width:1100px; margin:0 auto;">
+  <p class="section-label reveal">Функції</p>
+  <h2 class="reveal">Що під<br>капотом</h2>
+
+  <div class="features-grid reveal">
+    <div class="feature-item">
+      <div class="feature-icon fi-wifi">📡</div>
+      <div class="feature-title">WiFi WebServer контролер</div>
+      <p class="feature-desc">Повноцінна веб-сторінка на ESP32 — відкрийте браузер на телефоні або ноутбуці та грайте без жодного дротового контролера.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon fi-music">🎵</div>
+      <div class="feature-title">Неблокуюча музика</div>
+      <p class="feature-desc">Власний музичний рушій на <code style="font-size:12px;color:var(--accent-c)">musTick()</code> — фонова мелодія грає не переривуючи ігровий цикл. Жодного <code style="font-size:12px;color:var(--accent-c)">delay()</code> у sound loop.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon fi-pin">🔌</div>
+      <div class="feature-title">6 фізичних кнопок</div>
+      <p class="feature-desc">Лівий, правий, вгору, вниз, обертання, меню — всі на INPUT_PULLUP. Паралельна підтримка і фізичних GPIO, і WiFi-кнопок одночасно.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon fi-ctrl">🎮</div>
+      <div class="feature-title">Адаптивний веб-інтерфейс</div>
+      <p class="feature-desc">Touch-friendly UI із великими кнопками, підтримкою touchstart/touchend та mousedown/mouseup для миттєвого відгуку без затримок.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon fi-disp">🖥️</div>
+      <div class="feature-title">ST7789 240×320 @ SPI</div>
+      <p class="feature-desc">Повноколірний IPS TFT через апаратний SPI. Оптимізовані <code style="font-size:12px;color:var(--accent-c)">safeRect()</code> та часткові перемальовки для мінімального тирінгу.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon fi-sfx">🔔</div>
+      <div class="feature-title">Звукові ефекти</div>
+      <p class="feature-desc">Piezo buzzer на GPIO 33. SFX-функція <code style="font-size:12px;color:var(--accent-c)">sfx_beep()</code> синхронізує таймер музики, щоб ефекти не конфліктували з мелодією.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- HARDWARE -->
+<section id="hardware">
+  <p class="section-label reveal">Залізо</p>
+  <h2 class="reveal">Піни та<br>специфікація</h2>
+
+  <div class="hw-grid reveal">
+    <div class="hw-block">
+      <h3>GPIO Піни</h3>
+      <div class="pin-list">
+        <div class="pin-row"><span class="pin-num">5</span><span class="pin-sep">→</span><span class="pin-name">TFT_CS</span><span class="pin-type">SPI</span></div>
+        <div class="pin-row"><span class="pin-num">2</span><span class="pin-sep">→</span><span class="pin-name">TFT_DC</span><span class="pin-type">SPI</span></div>
+        <div class="pin-row"><span class="pin-num">4</span><span class="pin-sep">→</span><span class="pin-name">TFT_RST</span><span class="pin-type">SPI</span></div>
+        <div class="pin-row"><span class="pin-num">32</span><span class="pin-sep">→</span><span class="pin-name">TFT_BL (підсвітка)</span><span class="pin-type">PWM</span></div>
+        <div class="pin-row"><span class="pin-num">18</span><span class="pin-sep">→</span><span class="pin-name">SPI CLK</span><span class="pin-type">SPI</span></div>
+        <div class="pin-row"><span class="pin-num">23</span><span class="pin-sep">→</span><span class="pin-name">SPI MOSI</span><span class="pin-type">SPI</span></div>
+        <div class="pin-row"><span class="pin-num">33</span><span class="pin-sep">→</span><span class="pin-name">BUZZ (buzzer)</span><span class="pin-type">PWM</span></div>
+        <div class="pin-row"><span class="pin-num">22</span><span class="pin-sep">→</span><span class="pin-name">BTN_LEFT</span><span class="pin-type">INPUT</span></div>
+        <div class="pin-row"><span class="pin-num">21</span><span class="pin-sep">→</span><span class="pin-name">BTN_DOWN</span><span class="pin-type">INPUT</span></div>
+        <div class="pin-row"><span class="pin-num">13</span><span class="pin-sep">→</span><span class="pin-name">BTN_RIGHT</span><span class="pin-type">INPUT</span></div>
+        <div class="pin-row"><span class="pin-num">14</span><span class="pin-sep">→</span><span class="pin-name">BTN_UP</span><span class="pin-type">INPUT</span></div>
+        <div class="pin-row"><span class="pin-num">26</span><span class="pin-sep">→</span><span class="pin-name">BTN_ROT</span><span class="pin-type">INPUT</span></div>
+        <div class="pin-row"><span class="pin-num">25</span><span class="pin-sep">→</span><span class="pin-name">BTN_MENU</span><span class="pin-type">INPUT</span></div>
+      </div>
+    </div>
+
+    <div class="hw-block">
+      <h3>Специфікація</h3>
+      <div class="spec-list">
+        <div class="spec-row"><span class="spec-key">МК</span><span class="spec-val">ESP32 (Xtensa LX6)</span></div>
+        <div class="spec-row"><span class="spec-key">Дисплей</span><span class="spec-val">ST7789 240×320</span></div>
+        <div class="spec-row"><span class="spec-key">Інтерфейс</span><span class="spec-val">SPI (апаратний)</span></div>
+        <div class="spec-row"><span class="spec-key">WiFi</span><span class="spec-val">802.11b/g/n</span></div>
+        <div class="spec-row"><span class="spec-key">Веб-сервер</span><span class="spec-val">WebServer :80</span></div>
+        <div class="spec-row"><span class="spec-key">Звук</span><span class="spec-val">Piezo buzzer (PWM)</span></div>
+        <div class="spec-row"><span class="spec-key">Кнопки</span><span class="spec-val">6 × INPUT_PULLUP</span></div>
+        <div class="spec-row"><span class="spec-key">Бібліотеки</span><span class="spec-val">Adafruit GFX + ST7789</span></div>
+        <div class="spec-row"><span class="spec-key">Фреймрейт</span><span class="spec-val">~60 FPS (16ms loop)</span></div>
+        <div class="spec-row"><span class="spec-key">Рандом seed</span><span class="spec-val">analogRead(34)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTROLLER -->
+<section id="controller" style="background: var(--surface); max-width: none; padding: 100px 40px;">
+<div style="max-width: 1100px; margin: 0 auto;">
+  <p class="section-label reveal">Контролер</p>
+  <h2 class="reveal">Граємо прямо<br>з браузера</h2>
+
+  <div class="ctrl-wrap reveal">
+    <div>
+      <div class="ctrl-device">
+        <div class="ctrl-screen">
+          <div class="ctrl-screen-title">ESP32 ІГРИ</div>
+          <div class="ctrl-screen-ip" id="demo-ip">192.168.1.42</div>
+        </div>
+        <div class="ctrl-buttons">
+          <div class="ctrl-row">
+            <button class="cbtn cbtn-wide" onclick="pressBtn(this)">ОБЕРТАННЯ</button>
+          </div>
+          <div class="ctrl-row">
+            <button class="cbtn cbtn-sq" onclick="pressBtn(this)">ВВЕРХ</button>
+          </div>
+          <div class="ctrl-row">
+            <button class="cbtn cbtn-sq" onclick="pressBtn(this)">ВЛІВО</button>
+            <button class="cbtn cbtn-sq" onclick="pressBtn(this)">ВНИЗ</button>
+            <button class="cbtn cbtn-sq" onclick="pressBtn(this)">ВПРАВО</button>
+          </div>
+          <div class="ctrl-row">
+            <button class="cbtn cbtn-wide" onclick="pressBtn(this)">МЕНЮ</button>
+          </div>
+        </div>
+      </div>
+      <p id="btn-log" style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:14px;min-height:18px;"></p>
+    </div>
+
+    <div class="ctrl-info">
+      <h3>Відкрий і грай</h3>
+      <p>ESP32 піднімає власний HTTP-сервер. Веб-сторінка зберігається у PROGMEM і обслуговується напряму з мікроконтролера — без зовнішнього хостингу.</p>
+
+      <div class="ctrl-step-list">
+        <div class="ctrl-step">
+          <div class="ctrl-step-num">1</div>
+          <div class="ctrl-step-text">Підключіть ESP32 до вашої WiFi-мережі, вписавши <strong>SSID та пароль</strong> у код.</div>
+        </div>
+        <div class="ctrl-step">
+          <div class="ctrl-step-num">2</div>
+          <div class="ctrl-step-text">Після завантаження дисплей покаже <strong>IP-адресу</strong> (наприклад, 192.168.1.42).</div>
+        </div>
+        <div class="ctrl-step">
+          <div class="ctrl-step-num">3</div>
+          <div class="ctrl-step-text">Відкрийте цю адресу в браузері телефону або ноутбука та <strong>жміть кнопки</strong>.</div>
+        </div>
+        <div class="ctrl-step">
+          <div class="ctrl-step-num">4</div>
+          <div class="ctrl-step-text">Кожне натискання надсилає <strong>GET /btn?k=X</strong> запит. ESP32 отримує його за &lt;1 мс.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- MUSIC -->
+<section id="music">
+  <p class="section-label reveal">Музика</p>
+  <h2 class="reveal">5 унікальних<br>мелодій</h2>
+
+  <div class="code-section reveal" style="margin-bottom: 40px;">
+    <div class="code-header">
+      <div class="code-dots">
+        <div class="code-dot cd-r"></div>
+        <div class="code-dot cd-y"></div>
+        <div class="code-dot cd-g"></div>
+      </div>
+      <span class="code-filename">music_engine.cpp</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--muted);">non-blocking</span>
+    </div>
+    <div class="code-body">
+<pre><span class="cm">// Викликати кожен кадр — НЕ блокує</span>
+<span class="kw">void</span> <span class="fn">musTick</span>() {
+  <span class="kw">if</span> (!mus_enabled || mus_notes == <span class="kw">nullptr</span>) <span class="kw">return</span>;
+  <span class="ty">unsigned long</span> now = <span class="fn">millis</span>();
+  <span class="kw">if</span> (now < mus_next) <span class="kw">return</span>;   <span class="cm">// ще не час — вийти одразу</span>
+
+  <span class="ty">int</span> freq = mus_notes[mus_idx];
+  <span class="ty">unsigned long</span> dur = <span class="fn">mus_noteDur</span>(mus_durs[mus_idx]);
+
+  <span class="kw">if</span> (freq == NOTE_REST) <span class="fn">noTone</span>(BUZZ);
+  <span class="kw">else</span> <span class="fn">tone</span>(BUZZ, freq, dur * <span class="num">85</span> / <span class="num">100</span>); <span class="cm">// 85% звук, 15% пауза</span>
+
+  mus_next = now + dur;
+  <span class="kw">if</span> (++mus_idx >= mus_len) mus_idx = <span class="num">0</span>; <span class="cm">// зациклення</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="reveal" style="border: 1px solid var(--border); border-radius: 4px; overflow:hidden;">
+    <table class="music-table">
+      <thead>
+        <tr>
+          <th>Мелодія</th>
+          <th>Стиль</th>
+          <th>BPM</th>
+          <th>Нот</th>
+          <th>Гра</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="music-name">Menu Theme</span></td>
+          <td><span class="music-style">Весела аркадна (Super Mario Bros)</span></td>
+          <td><span class="music-bpm">180</span></td>
+          <td><span class="music-len">47</span></td>
+          <td><span class="music-badge mb-y">МЕНЮ</span></td>
+        </tr>
+        <tr>
+          <td><span class="music-name">Korobeiniki</span></td>
+          <td><span class="music-style">Класична тема Тетрісу</span></td>
+          <td><span class="music-bpm">144</span></td>
+          <td><span class="music-len">39</span></td>
+          <td><span class="music-badge mb-p">TETRIS</span></td>
+        </tr>
+        <tr>
+          <td><span class="music-name">Snake Beat</span></td>
+          <td><span class="music-style">Ритмічна аркадна</span></td>
+          <td><span class="music-bpm">150</span></td>
+          <td><span class="music-len">33</span></td>
+          <td><span class="music-badge mb-c">SNAKE</span></td>
+        </tr>
+        <tr>
+          <td><span class="music-name">Breakout Arpeggio</span></td>
+          <td><span class="music-style">Висхідні арпеджіо</span></td>
+          <td><span class="music-bpm">160</span></td>
+          <td><span class="music-len">33</span></td>
+          <td><span class="music-badge mb-c">BREAKOUT</span></td>
+        </tr>
+        <tr>
+          <td><span class="music-name">Invader March</span></td>
+          <td><span class="music-style">Загрозлива (Star Wars Imp. March)</span></td>
+          <td><span class="music-bpm">120</span></td>
+          <td><span class="music-len">40</span></td>
+          <td><span class="music-badge mb-g">SPACE INV.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">ESP32 MINI GAMES</div>
+  <div class="footer-sub">Arduino C++ · Adafruit GFX · ST7789 · WiFi WebServer</div>
+</footer>
+
+<script>
+// Scroll reveal
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+// Demo buttons
+const log = document.getElementById('btn-log');
+const labels = {
+  'ОБЕРТАННЯ': 'ROT pressed → GET /btn?k=T',
+  'ВВЕРХ':     'UP pressed  → GET /btn?k=U',
+  'ВЛІВО':     'LEFT pressed → GET /btn?k=L',
+  'ВНИЗ':      'DOWN pressed → GET /btn?k=D',
+  'ВПРАВО':    'RIGHT pressed → GET /btn?k=R',
+  'МЕНЮ':      'MENU pressed → GET /btn?k=M',
+};
+function pressBtn(b) {
+  const txt = labels[b.textContent.trim()] || b.textContent;
+  log.textContent = '→ ' + txt;
+  clearTimeout(window._logTimer);
+  window._logTimer = setTimeout(() => log.textContent = '', 1800);
+}
+
+// Animate menu selection cycling
+const items = document.querySelectorAll('.menu-item');
+const colors = ['var(--accent-c)', 'var(--accent-g)', '#00c8ff', 'var(--accent-p)'];
+let sel = 0;
+setInterval(() => {
+  items.forEach((el, i) => {
+    el.classList.remove('active');
+    el.style.borderColor = '';
+    el.style.background = '';
+    el.style.color = '';
+  });
+  sel = (sel + 1) % 4;
+  items[sel].classList.add('active');
+  items[sel].style.borderColor = colors[sel].replace('var(', '').replace(')', '');
+  items[sel].style.color = '';
+}, 1500);
+</script>
+</body>
+</html>
